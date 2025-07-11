@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-Team Statistics Blog Post Generator
+Team Statistics Comprehensive Analysis Generator
 
 This script fetches team statistics from a CSV file, removes duplicate entries,
-ranks teams by performance, and generates markdown blog posts for the top 20 
-performing teams.
+ranks teams by performance, and generates a comprehensive summary post displaying
+all original CSV statistics for the top 20 performing teams.
 
 Features:
 - Automatic duplicate team removal (keeps first occurrence)
 - Composite performance scoring with weighted metrics
-- Automated blog post generation in markdown format
+- Comprehensive summary post with complete team statistics
+- Intelligent column detection and data processing
+- All original CSV data preserved and displayed
 """
 
 import pandas as pd
@@ -249,116 +251,117 @@ def get_top_performing_teams(df, top_n=20):
     print(f"Top {top_n} performing teams selected")
     return top_teams
 
-def sanitize_filename(team_name):
-    """Sanitize team name for use as filename"""
-    # Remove or replace special characters
-    sanitized = re.sub(r'[^a-zA-Z0-9\s-]', '', team_name)
-    # Replace spaces with hyphens and convert to lowercase
-    sanitized = re.sub(r'\s+', '-', sanitized.strip()).lower()
-    return sanitized
 
-def generate_blog_post(team_data, rank):
-    """Generate a markdown blog post for a team"""
-    
-    team_name = team_data['TEAM']
-    current_date = datetime.now().strftime('%Y-%m-%d')
-    
-    # Sanitize team name for filename
-    filename = sanitize_filename(team_name)
-    
-    # Create markdown content
-    content = f"""---
-title: "Team Analysis: {team_name}"
-date: {current_date}
-rank: {rank}
-team: "{team_name}"
-performance_score: {team_data['performance_score']:.2f}
----
 
-# {team_name} - Performance Analysis
 
-**Rank:** #{rank} of top performing teams
 
-## Key Statistics
-
-### Match Performance
-- **Matches Played:** {team_data['matches_played']}
-- **Matches Won:** {team_data['matches_won']}
-- **Matches Drawn:** {team_data['matches_drawn']}
-- **Matches Lost:** {team_data['matches_lost']}
-- **Win Rate:** {team_data['win_rate']:.1f}%
-
-### Goal Statistics
-- **Goals For:** {team_data['goals_for']}
-- **Goals Against:** {team_data['goals_against']}
-- **Goal Difference:** {team_data['goal_difference']:+d}
-- **Goals Scored per Match:** {team_data['goals_scored_per_match']:.2f}
-- **Goals Conceded per Match:** {team_data['goals_conceded_per_match']:.2f}
-
-### Performance Metrics
-- **Performance Score:** {team_data['performance_score']:.2f}
-- **Scoring Strength:** {team_data['scoring_strength']:.2f}
-- **Goal Difference per Match:** {team_data['goal_difference_per_match']:.2f}
-
-## Analysis
-
-{team_name} ranks #{rank} among top performing teams with a performance score of {team_data['performance_score']:.2f}.
-
-### Strengths
-"""
-
-    # Add analysis based on statistics
-    if team_data['win_rate'] > 60:
-        content += f"- **High Win Rate**: With a {team_data['win_rate']:.1f}% win rate, {team_name} demonstrates consistent winning performance.\n"
-    
-    if team_data['goal_difference'] > 0:
-        content += f"- **Positive Goal Difference**: A goal difference of {team_data['goal_difference']:+d} shows strong defensive and offensive balance.\n"
-    
-    if team_data['goals_scored_per_match'] > 1.5:
-        content += f"- **Strong Attack**: Averaging {team_data['goals_scored_per_match']:.2f} goals per match demonstrates potent offensive capabilities.\n"
-    
-    if team_data['goals_conceded_per_match'] < 1.0:
-        content += f"- **Solid Defense**: Conceding only {team_data['goals_conceded_per_match']:.2f} goals per match shows defensive strength.\n"
-
-    content += """
-### Key Metrics Summary
-
-This team's performance is based on a composite score considering:
-- Win rate (40% weight)
-- Goal difference (25% weight) 
-- Goals scored per match (20% weight)
-- Scoring strength (15% weight)
-
-*Data sourced from match statistics and performance analytics.*
-"""
-
-    return filename, content
-
-def create_blog_posts(top_teams):
-    """Create markdown blog posts for all top teams"""
+def create_summary_post_only(top_teams, total_teams):
+    """Create only a comprehensive summary post with all team statistics"""
     
     # Ensure posts directory exists
     os.makedirs('posts', exist_ok=True)
     
-    generated_posts = []
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Create comprehensive summary content
+    summary_content = f"""---
+title: "Top 20 Performing Teams - Complete Analysis"
+date: {current_date}
+---
+
+# Top 20 Performing Teams - Complete Analysis
+
+Generated on {current_datetime}
+
+## Overview
+
+This analysis presents the top 20 performing teams based on a composite performance score. Each team's complete statistics from the original dataset are displayed below.
+
+## Team Rankings & Complete Statistics
+
+"""
     
     for rank, (_, team_data) in enumerate(top_teams.iterrows(), 1):
-        filename, content = generate_blog_post(team_data, rank)
+        team_name = team_data['TEAM']
+        performance_score = team_data.get('performance_score', 0)
         
-        # Create full filepath
-        post_filename = f"posts/{datetime.now().strftime('%Y-%m-%d')}-{filename}-analysis.md"
+        summary_content += f"""
+### #{rank}. {team_name}
+
+**Performance Score:** {performance_score:.2f}
+
+#### Complete Team Statistics:
+"""
         
-        # Write blog post
-        with open(post_filename, 'w', encoding='utf-8') as f:
-            f.write(content)
+        # Display all available statistics from the CSV
+        for column, value in team_data.items():
+            if column != 'TEAM':  # Skip the team name since it's already displayed
+                # Format the value based on its type
+                if pd.isna(value):
+                    formatted_value = "N/A"
+                elif isinstance(value, (int, float)):
+                    if column in ['performance_score', 'calculated_win_rate', 'calculated_goal_difference', 'calculated_goals_per_match']:
+                        formatted_value = f"{value:.2f}"
+                    elif 'rate' in column.lower() or 'percentage' in column.lower():
+                        formatted_value = f"{value:.1f}%"
+                    elif isinstance(value, float) and value != int(value):
+                        formatted_value = f"{value:.2f}"
+                    else:
+                        formatted_value = f"{int(value)}" if value == int(value) else f"{value:.2f}"
+                else:
+                    formatted_value = str(value)
+                
+                # Format column name for display
+                display_name = column.replace('_', ' ').title()
+                summary_content += f"- **{display_name}:** {formatted_value}\n"
         
-        generated_posts.append(post_filename)
-        print(f"Generated post for #{rank}: {team_data['TEAM']} -> {post_filename}")
+        summary_content += "\n---\n"
     
-    return generated_posts
+    # Add methodology section
+    summary_content += f"""
+
+## Methodology
+
+### Performance Score Calculation
+Teams are ranked using a composite performance score calculated from:
+- **Win Rate (40% weight)** - Percentage of matches won
+- **Goal Difference (25% weight)** - Goals scored minus goals conceded  
+- **Goals Scored per Match (20% weight)** - Average goals scored per game
+- **Scoring Strength (15% weight)** - Team's offensive capabilities
+
+### Data Processing
+- **Data source:** {CSV_URL}
+- **Total teams analyzed:** {total_teams} (after removing duplicates)
+- **Duplicate handling:** First occurrence kept, subsequent duplicates removed
+- **Missing data:** Automatically calculated from available metrics when possible
+
+### Column Detection
+The script intelligently detects various column naming conventions and calculates missing metrics:
+- Win rates calculated from matches won/played when not available
+- Goal differences calculated from goals for/against when not available  
+- Goals per match calculated from total goals/matches when not available
+
+### Quality Assurance
+✅ Duplicate teams removed for accuracy  
+✅ Missing values handled appropriately  
+✅ Performance scores validated across all teams  
+✅ All original CSV statistics preserved and displayed  
+
+---
+
+*All statistics are sourced directly from the original CSV data and processed for accuracy and completeness.*
+"""
+    
+    summary_filename = f"posts/{current_date}-top-20-teams-complete-analysis.md"
+    with open(summary_filename, 'w', encoding='utf-8') as f:
+        f.write(summary_content)
+    
+    print(f"Generated comprehensive summary post: {summary_filename}")
+    return [summary_filename]
 
 def main():
-    """Main function to orchestrate the blog post generation"""
+    """Main function to orchestrate the comprehensive team analysis"""
     
     print("Fetching team statistics data...")
     df = fetch_team_data()
@@ -374,55 +377,23 @@ def main():
     top_teams = get_top_performing_teams(df, top_n=20)
     
     print("\nTop 5 teams preview:")
-    print(top_teams[['TEAM', 'win_rate', 'goal_difference', 'performance_score']].head())
+    # Show available columns for preview
+    preview_columns = ['TEAM', 'performance_score']
+    for col in ['win_rate', 'calculated_win_rate', 'goal_difference', 'calculated_goal_difference']:
+        if col in top_teams.columns:
+            preview_columns.append(col)
+            break
     
-    print("\nGenerating blog posts...")
-    generated_posts = create_blog_posts(top_teams)
+    print(top_teams[preview_columns].head())
     
-    print(f"\nCompleted! Generated {len(generated_posts)} blog posts:")
+    print("\nGenerating comprehensive summary post with all team statistics...")
+    generated_posts = create_summary_post_only(top_teams, len(df))
+    
+    print(f"\nCompleted! Generated comprehensive analysis:")
     for post in generated_posts:
-        print(f"  - {post}")
+        print(f"  ✓ {post}")
     
-    # Generate summary post
-    summary_content = f"""---
-title: "Top 20 Performing Teams - Summary"
-date: {datetime.now().strftime('%Y-%m-%d')}
----
-
-# Top 20 Performing Teams Analysis
-
-Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-## Rankings
-
-"""
-    
-    for rank, (_, team_data) in enumerate(top_teams.iterrows(), 1):
-        summary_content += f"{rank}. **{team_data['TEAM']}** - Performance Score: {team_data['performance_score']:.2f}\n"
-    
-    summary_content += f"""
-## Methodology
-
-Teams are ranked using a composite performance score calculated from:
-- Win Rate (40% weight)
-- Goal Difference (25% weight)
-- Goals Scored per Match (20% weight)
-- Scoring Strength (15% weight)
-
-## Data Processing
-
-- **Data source:** {CSV_URL}
-- **Total teams analyzed:** {len(df)} (after removing duplicates)
-- **Duplicate handling:** First occurrence kept, subsequent duplicates removed
-
-*All statistics are based on deduplicated team data to ensure accurate analysis.*
-"""
-    
-    summary_filename = f"posts/{datetime.now().strftime('%Y-%m-%d')}-top-20-teams-summary.md"
-    with open(summary_filename, 'w', encoding='utf-8') as f:
-        f.write(summary_content)
-    
-    print(f"\nSummary post created: {summary_filename}")
+    print(f"\nSummary: Analyzed {len(df)} teams and created detailed report for top 20 performers.")
 
 if __name__ == "__main__":
     main()
