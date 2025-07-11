@@ -2,8 +2,14 @@
 """
 Team Statistics Blog Post Generator
 
-This script fetches team statistics from a CSV file, ranks teams by performance,
-and generates markdown blog posts for the top 20 performing teams.
+This script fetches team statistics from a CSV file, removes duplicate entries,
+ranks teams by performance, and generates markdown blog posts for the top 20 
+performing teams.
+
+Features:
+- Automatic duplicate team removal (keeps first occurrence)
+- Composite performance scoring with weighted metrics
+- Automated blog post generation in markdown format
 """
 
 import pandas as pd
@@ -14,6 +20,38 @@ import re
 
 # CSV data URL
 CSV_URL = "https://raw.githubusercontent.com/JOSPHATT/Finished_Matches_dash_statistics/refs/heads/main/team_statistics.csv"
+
+def remove_duplicates(df):
+    """Remove duplicate team entries from the dataframe"""
+    if df is None or df.empty:
+        return df
+    
+    initial_count = len(df)
+    
+    # Check if TEAM column exists
+    if 'TEAM' not in df.columns:
+        print("Warning: 'TEAM' column not found. Checking for alternative team column names...")
+        # Look for potential team column names
+        team_columns = [col for col in df.columns if 'team' in col.lower() or 'name' in col.lower()]
+        if team_columns:
+            print(f"Found potential team column: {team_columns[0]}")
+            df = df.rename(columns={team_columns[0]: 'TEAM'})
+        else:
+            print("No team column found. Using first column as team identifier.")
+            df = df.rename(columns={df.columns[0]: 'TEAM'})
+    
+    # Remove duplicates based on team name, keeping the first occurrence
+    df_cleaned = df.drop_duplicates(subset=['TEAM'], keep='first')
+    
+    duplicates_removed = initial_count - len(df_cleaned)
+    
+    if duplicates_removed > 0:
+        print(f"Removed {duplicates_removed} duplicate team entries")
+        print(f"Teams after duplicate removal: {len(df_cleaned)}")
+    else:
+        print("No duplicate teams found")
+    
+    return df_cleaned
 
 def fetch_team_data():
     """Fetch team statistics from the CSV URL"""
@@ -31,6 +69,10 @@ def fetch_team_data():
         os.remove('temp_team_stats.csv')
         
         print(f"Successfully loaded data for {len(df)} teams")
+        
+        # Remove duplicate teams
+        df = remove_duplicates(df)
+        
         return df
         
     except Exception as e:
@@ -189,8 +231,8 @@ def main():
         print("Failed to fetch data. Exiting.")
         return
     
-    print(f"Data columns: {list(df.columns)}")
-    print(f"Total teams in dataset: {len(df)}")
+    print(f"\nData columns: {list(df.columns)}")
+    print(f"Final teams in cleaned dataset: {len(df)}")
     
     print("\nCalculating performance scores and selecting top 20 teams...")
     top_teams = get_top_performing_teams(df, top_n=20)
@@ -231,8 +273,13 @@ Teams are ranked using a composite performance score calculated from:
 - Goals Scored per Match (20% weight)
 - Scoring Strength (15% weight)
 
-Total teams analyzed: {len(df)}
-Data source: {CSV_URL}
+## Data Processing
+
+- **Data source:** {CSV_URL}
+- **Total teams analyzed:** {len(df)} (after removing duplicates)
+- **Duplicate handling:** First occurrence kept, subsequent duplicates removed
+
+*All statistics are based on deduplicated team data to ensure accurate analysis.*
 """
     
     summary_filename = f"posts/{datetime.now().strftime('%Y-%m-%d')}-top-20-teams-summary.md"
