@@ -1,14 +1,14 @@
 ---
 title: "Team Analysis: Christchurch United"
 date: 2025-07-11
-rank: 20
+rank: 1
 team: "Christchurch United"
 performance_score: 46.07
 ---
 
 # Christchurch United - Performance Analysis
 
-**Rank:** #20 of top performing teams
+**Rank:** #1 of top performing teams
 
 ## Key Statistics
 
@@ -33,7 +33,7 @@ performance_score: 46.07
 
 ## Analysis
 
-Christchurch United ranks #20 among top performing teams with a performance score of 46.07.
+Christchurch United ranks #1 among top performing teams with a performance score of 46.07.
 
 ### Strengths
 - **High Win Rate**: With a 100.0% win rate, Christchurch United demonstrates consistent winning performance.
