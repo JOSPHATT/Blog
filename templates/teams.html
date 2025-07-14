@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Teams Ranking - Team Analysis Blog{% endblock %}
+
+{% block content %}
+<h2>Teams Ranked by Performance</h2>
+
+{% if posts %}
+    <p>Showing {{ posts|length }} teams ranked by performance score</p>
+    
+    <div style="display: grid; gap: 1rem;">
+    {% for post in posts %}
+        <div class="post-card" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h3 style="margin: 0 0 0.5rem 0;">
+                    <a href="/post/{{ post.slug }}" style="text-decoration: none; color: #333;">{{ post.team }}</a>
+                </h3>
+                <div class="post-meta" style="margin: 0;">
+                    {% if post.rank %}
+                    <span class="rank-badge">Rank #{{ post.rank }}</span>
+                    {% endif %}
+                    {% if post.performance_score %}
+                    <span class="performance-score">Score: {{ post.performance_score }}</span>
+                    {% endif %}
+                    | <strong>Date:</strong> {{ post.date }}
+                </div>
+            </div>
+            <div>
+                <a href="/post/{{ post.slug }}" style="color: #007bff; text-decoration: none; font-weight: bold;">View Analysis →</a>
+            </div>
+        </div>
+    {% endfor %}
+    </div>
+    
+{% else %}
+    <div class="post-card">
+        <h3>No team data found</h3>
+        <p>There are no team analysis posts available at the moment.</p>
+    </div>
+{% endif %}
+
+<div style="margin-top: 2rem;">
+    <a href="/" style="color: #007bff; text-decoration: none;">← Back to all posts</a>
+</div>
+{% endblock %}

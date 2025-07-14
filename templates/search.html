@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Search - Team Analysis Blog{% endblock %}
+
+{% block content %}
+<h2>Search Posts</h2>
+
+<div class="search-form">
+    <form method="GET" action="/search">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search teams or content...">
+        <button type="submit">Search</button>
+    </form>
+</div>
+
+{% if query %}
+    <h3>Search Results for "{{ query }}"</h3>
+    
+    {% if posts %}
+        <p>Found {{ posts|length }} matching posts</p>
+        
+        {% for post in posts %}
+        <div class="post-card">
+            <h3><a href="/post/{{ post.slug }}" style="text-decoration: none; color: #333;">{{ post.title }}</a></h3>
+            
+            <div class="post-meta">
+                <strong>Date:</strong> {{ post.date }}
+                {% if post.team %}
+                | <strong>Team:</strong> {{ post.team }}
+                {% endif %}
+                {% if post.rank %}
+                | <span class="rank-badge">Rank #{{ post.rank }}</span>
+                {% endif %}
+                {% if post.performance_score %}
+                | <span class="performance-score">Score: {{ post.performance_score }}</span>
+                {% endif %}
+            </div>
+            
+            <div style="margin-top: 1rem;">
+                {% set preview_lines = post.content.split('\n')[:2] %}
+                {% for line in preview_lines %}
+                    {% if line.strip() %}
+                        <p>{{ line.strip() }}</p>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            
+            <a href="/post/{{ post.slug }}" style="color: #007bff; text-decoration: none; font-weight: bold;">Read more →</a>
+        </div>
+        {% endfor %}
+        
+    {% else %}
+        <div class="post-card">
+            <h3>No results found</h3>
+            <p>No posts found matching "{{ query }}". Try a different search term.</p>
+        </div>
+    {% endif %}
+    
+{% else %}
+    <div class="post-card">
+        <h3>Search Posts</h3>
+        <p>Enter a search term above to find posts by team name or content.</p>
+    </div>
+{% endif %}
+
+<div style="margin-top: 2rem;">
+    <a href="/" style="color: #007bff; text-decoration: none;">← Back to all posts</a>
+</div>
+{% endblock %}

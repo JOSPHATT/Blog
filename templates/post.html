@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} - Team Analysis Blog{% endblock %}
+
+{% block content %}
+<div class="post-card">
+    <h1>{{ post.title }}</h1>
+    
+    <div class="post-meta">
+        <strong>Date:</strong> {{ post.date }}
+        {% if post.team %}
+        | <strong>Team:</strong> {{ post.team }}
+        {% endif %}
+        {% if post.rank %}
+        | <span class="rank-badge">Rank #{{ post.rank }}</span>
+        {% endif %}
+        {% if post.performance_score %}
+        | <span class="performance-score">Score: {{ post.performance_score }}</span>
+        {% endif %}
+    </div>
+    
+    <div class="content">{{ post.content }}</div>
+</div>
+
+<div style="margin: 2rem 0;">
+    <a href="/" style="color: #007bff; text-decoration: none;">← Back to all posts</a>
+    <a href="/teams" style="color: #007bff; text-decoration: none; margin-left: 2rem;">View all teams</a>
+</div>
+{% endblock %}

@@ -2,89 +2,102 @@
 """
 Flask Blog Application
 
-This Flask app fetches and displays blog posts from the posts directory.
-It parses markdown files with YAML frontmatter and provides a web interface
-to browse team analysis posts.
+This Flask app displays blog posts from the posts directory.
 """
 
-from flask import Flask, render_template, abort, request
-import frontmatter
-import markdown
+from flask import Flask, render_template, abort, request, jsonify
 import os
-from datetime import datetime
 import glob
+import re
+from datetime import datetime
 
 app = Flask(__name__)
 
-class BlogPost:
-    """Class to represent a blog post with metadata and content"""
+def parse_frontmatter(content):
+    """Parse YAML frontmatter from markdown content"""
+    if not content.startswith('---'):
+        return {}, content
     
-    def __init__(self, filepath):
-        self.filepath = filepath
-        self.filename = os.path.basename(filepath)
-        
-        # Load and parse the markdown file
-        with open(filepath, 'r', encoding='utf-8') as f:
-            post = frontmatter.load(f)
+    parts = content.split('---', 2)
+    if len(parts) < 3:
+        return {}, content
+    
+    frontmatter_text = parts[1].strip()
+    content = parts[2].strip()
+    
+    # Simple YAML parsing for our specific format
+    metadata = {}
+    for line in frontmatter_text.split('\n'):
+        if ':' in line:
+            key, value = line.split(':', 1)
+            key = key.strip()
+            value = value.strip().strip('"')
             
-        # Extract metadata from frontmatter
-        self.metadata = post.metadata
-        self.title = self.metadata.get('title', 'Untitled')
-        self.date = self.metadata.get('date', datetime.now())
-        self.rank = self.metadata.get('rank', None)
-        self.team = self.metadata.get('team', 'Unknown Team')
-        self.performance_score = self.metadata.get('performance_score', None)
-        
-        # Convert content to HTML
-        self.content = post.content
-        self.html_content = markdown.markdown(self.content)
-        
-        # Generate slug from filename
-        self.slug = self.filename.replace('.md', '')
+            # Convert numeric values
+            if value.replace('.', '').isdigit():
+                value = float(value) if '.' in value else int(value)
+            
+            metadata[key] = value
+    
+    return metadata, content
 
-def load_all_posts():
+def load_posts():
     """Load all blog posts from the posts directory"""
     posts = []
     posts_dir = 'posts'
     
     if not os.path.exists(posts_dir):
         return posts
-        
+    
     # Find all markdown files
     markdown_files = glob.glob(os.path.join(posts_dir, '*.md'))
     
     for filepath in markdown_files:
         try:
-            post = BlogPost(filepath)
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            metadata, post_content = parse_frontmatter(content)
+            
+            post = {
+                'filename': os.path.basename(filepath),
+                'slug': os.path.basename(filepath).replace('.md', ''),
+                'title': metadata.get('title', 'Untitled'),
+                'date': metadata.get('date', '2025-07-11'),
+                'team': metadata.get('team', 'Unknown'),
+                'rank': metadata.get('rank', None),
+                'performance_score': metadata.get('performance_score', None),
+                'content': post_content,
+                'metadata': metadata
+            }
             posts.append(post)
+            
         except Exception as e:
-            print(f"Error loading post {filepath}: {e}")
-            continue
+            print(f"Error loading {filepath}: {e}")
     
     return posts
-
-def get_post_by_slug(slug):
-    """Get a specific post by its slug"""
-    posts = load_all_posts()
-    for post in posts:
-        if post.slug == slug:
-            return post
-    return None
 
 @app.route('/')
 def index():
     """Homepage showing all blog posts"""
-    posts = load_all_posts()
+    posts = load_posts()
     
-    # Sort posts by date (newest first) and then by rank
-    posts.sort(key=lambda x: (x.date if isinstance(x.date, datetime) else datetime.strptime(str(x.date), '%Y-%m-%d'), x.rank or 999), reverse=True)
+    # Sort by date and rank
+    posts.sort(key=lambda x: (x['date'], x['rank'] or 999), reverse=True)
     
     return render_template('index.html', posts=posts)
 
 @app.route('/post/<slug>')
 def post_detail(slug):
     """Display a specific blog post"""
-    post = get_post_by_slug(slug)
+    posts = load_posts()
+    
+    post = None
+    for p in posts:
+        if p['slug'] == slug:
+            post = p
+            break
+    
     if not post:
         abort(404)
     
@@ -93,50 +106,37 @@ def post_detail(slug):
 @app.route('/teams')
 def teams():
     """List all teams with their performance scores"""
-    posts = load_all_posts()
+    posts = load_posts()
     
-    # Filter for team analysis posts (not summary posts)
-    team_posts = [p for p in posts if p.team and p.team != 'Unknown Team' and 'summary' not in p.title.lower()]
+    # Filter for team analysis posts
+    team_posts = [p for p in posts if p['team'] and p['team'] != 'Unknown' and 'summary' not in p['title'].lower()]
     
-    # Sort by performance score (highest first)
-    team_posts.sort(key=lambda x: x.performance_score or 0, reverse=True)
+    # Sort by performance score
+    team_posts.sort(key=lambda x: x['performance_score'] or 0, reverse=True)
     
     return render_template('teams.html', posts=team_posts)
 
 @app.route('/api/posts')
 def api_posts():
     """JSON API endpoint for posts data"""
-    posts = load_all_posts()
-    
-    posts_data = []
-    for post in posts:
-        posts_data.append({
-            'slug': post.slug,
-            'title': post.title,
-            'date': str(post.date),
-            'team': post.team,
-            'rank': post.rank,
-            'performance_score': post.performance_score,
-            'metadata': post.metadata
-        })
-    
-    return {'posts': posts_data}
+    posts = load_posts()
+    return jsonify({'posts': posts})
 
 @app.route('/search')
 def search():
     """Search posts by team name or content"""
     query = request.args.get('q', '').lower()
+    posts = load_posts()
+    
     if not query:
         return render_template('search.html', posts=[], query='')
-    
-    posts = load_all_posts()
     
     # Search in title, team name, and content
     matching_posts = []
     for post in posts:
-        if (query in post.title.lower() or 
-            query in post.team.lower() or 
-            query in post.content.lower()):
+        if (query in post['title'].lower() or 
+            query in post['team'].lower() or 
+            query in post['content'].lower()):
             matching_posts.append(post)
     
     return render_template('search.html', posts=matching_posts, query=query)
